@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Button, Input, RTE, Select } from "..";
 import appwriteService from "../../appwrite/config";
@@ -9,7 +9,7 @@ export default function PostForm({ post }) {
     const { register, handleSubmit, watch, setValue, control, getValues } = useForm({
         defaultValues: {
             title: post?.title || "",
-            slug: post?.$id || "",
+            slug: post?.slug || "",
             content: post?.content || "",
             status: post?.status || "active",
         },
@@ -17,53 +17,61 @@ export default function PostForm({ post }) {
 
     const navigate = useNavigate();
     const userData = useSelector((state) => state.auth.userData);
-    console.log("auth state:", useSelector((state) => state.auth));
 
     const submit = async (data) => {
-        if (post) {
-            const file = data.image[0] ? await appwriteService.uploadFile(data.image[0]) : null;
-
-            if (file) {
-                appwriteService.deleteFile(post.featuredImage);
+        try {
+            // Ensure user data is available
+            if (!userData || !userData.$id) {
+                throw new Error("User data is missing or invalid. Please log in again.");
             }
 
-            const dbPost = await appwriteService.updatePost(post.$id, {
-                ...data,
-                featuredImage: file ? file.$id : undefined,
-            });
-
-            if (dbPost) {
-                navigate(`/post/${dbPost.$id}`);
-            }
-        } else {
-            const file = await appwriteService.uploadFile(data.image[0]);
-
-            if (file) {
-                const fileId = file.$id;
-                data.featuredImage = fileId;
-                console.log("userData:", userData);
-
-                const dbPost = await appwriteService.createPost({ ...data, userId: userData.$id });
-
-                if (dbPost) {
-                    navigate(`/post/${dbPost.$id}`);
+            // Handle file upload
+            let fileId = null;
+            if (data.image?.[0]) {
+                const file = await appwriteService.uploadFile(data.image[0]);
+                fileId = file?.$id;
+                if (post?.featuredImage) {
+                    await appwriteService.deleteFile(post.featuredImage);
                 }
             }
+
+            // Create or update post
+            if (post) {
+                const updatedPost = await appwriteService.updatePost(post.$id, {
+                    ...data,
+                    featuredImage: fileId || post.featuredImage,
+                });
+                if (updatedPost) {
+                    navigate(`/post/${updatedPost.$id}`);
+                }
+            } else {
+                const newPost = await appwriteService.createPost({
+                    ...data,
+                    featuredImage: fileId,
+                    userId: userData.$id,
+                });
+                if (newPost) {
+                    navigate(`/post/${newPost.$id}`);
+                }
+            }
+        } catch (error) {
+            console.error("Error during post submission:", error.message);
+            alert(`Error during post submission: ${error.message}`);
         }
     };
 
     const slugTransform = useCallback((value) => {
-        if (value && typeof value === "string")
+        if (value && typeof value === "string") {
             return value
                 .trim()
                 .toLowerCase()
                 .replace(/[^a-zA-Z\d\s]+/g, "-")
                 .replace(/\s/g, "-");
-
+        }
         return "";
     }, []);
 
-    React.useEffect(() => {
+    useEffect(() => {
         const subscription = watch((value, { name }) => {
             if (name === "title") {
                 setValue("slug", slugTransform(value.title), { shouldValidate: true });
@@ -101,7 +109,7 @@ export default function PostForm({ post }) {
                     accept="image/png, image/jpg, image/jpeg, image/gif"
                     {...register("image", { required: !post })}
                 />
-                {post && (
+                {post && post.featuredImage && (
                     <div className="w-full mb-4">
                         <img
                             src={appwriteService.getFilePreview(post.featuredImage)}

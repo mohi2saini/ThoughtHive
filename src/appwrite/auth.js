@@ -38,15 +38,31 @@ export class AuthService {
 
     async getCurrentUser() {
         try {
+            console.log("Attempting to fetch current user...");
             const user = await this.account.get();
+            console.log("Fetched user data:", user);
             return user;
         } catch (error) {
             console.log("Appwrite service :: getCurrentUser :: error", error.message);
             console.error("Error details:", error);
+    
+            if (error.response) {
+                console.log("Response error status:", error.response.status);
+                console.log("Response error data:", error.response.data);
+            }
+    
+            if (error.code === 401) {
+                console.log("User is not authenticated. Redirecting to login...");
+                // Optionally, you can redirect to the login page here
+                // window.location.href = '/login';
+            } else {
+                console.log("An unexpected error occurred while fetching the current user.");
+            }
         }
     
         return null;
     }
+    
     
 
     async logout() {
@@ -54,7 +70,7 @@ export class AuthService {
         try {
             await this.account.deleteSessions();
             console.log("Logged out successfully");
-            window.location.href = '/login';
+            window.location.href = '/';
         } catch (error) {
             console.log("Appwrite serive :: logout :: error", error);
         }
