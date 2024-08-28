@@ -1,0 +1,15 @@
+/* Logo.module.css */
+@keyframes border-transition {
+    0% {
+      border-image-source: linear-gradient(45deg, rgba(66, 153, 225, 0.5), rgba(66, 153, 225, 0.0));
+    }
+    100% {
+      border-image-source: linear-gradient(45deg, rgba(66, 153, 225, 0.7), rgba(66, 153, 225, 0.3));
+    }
+  }
+  
+  .animateBorderTransition {
+    animation: border-transition 0.5s ease-in-out infinite;
+    border-width: 4px;
+  }
+  
